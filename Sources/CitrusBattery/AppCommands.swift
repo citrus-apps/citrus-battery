@@ -70,7 +70,7 @@ struct AppCommands: Commands {
 @MainActor
 enum AboutCitrusBattery {
     static func show() {
-        let text = "Created by rdna897\n\ngithub.com/rdna897/citrus-battery"
+        let text = "Created by Citrus Apps\n\ngithub.com/citrus-apps/citrus-battery"
         let paragraph = NSMutableParagraphStyle()
         paragraph.alignment = .center
         let credits = NSMutableAttributedString(string: text, attributes: [
@@ -79,8 +79,8 @@ enum AboutCitrusBattery {
             .paragraphStyle: paragraph,
         ])
         let links = [
-            ("rdna897", "https://github.com/rdna897"),
-            ("github.com/rdna897/citrus-battery", "https://github.com/rdna897/citrus-battery"),
+            ("Citrus Apps", "https://github.com/citrus-apps"),
+            ("github.com/citrus-apps/citrus-battery", "https://github.com/citrus-apps/citrus-battery"),
         ]
         for (label, address) in links {
             credits.addAttribute(.link, value: URL(string: address)!, range: (text as NSString).range(of: label))
