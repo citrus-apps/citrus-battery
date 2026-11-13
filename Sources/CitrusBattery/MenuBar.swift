@@ -45,11 +45,22 @@ struct MenuBarLabel: View {
         // bars; when anything is coloured (the battery fill, a coloured leaf) the
         // image keeps its colours, so the rest is drawn in the menu bar's own ink.
         let style = self.style
-        if style.fill == .none && !(style.showsLeaf && leafUsesColour) {
-            Image(nsImage: Self.render(content(style, ink: nil), template: true))
-        } else {
-            Image(nsImage: Self.render(content(style, ink: MenuBarInk.current(inMenuBar: inMenuBar)), template: false))
-        }
+        let text = MenuBarFormatter.render(
+            format, values: monitor.menuBarValues(temperatureUnit: temperatureUnit, capacityStyle: capacityStyle))
+        let coloured = style.fill != .none || (style.showsLeaf && leafUsesColour)
+        let ink = coloured ? MenuBarInk.current(inMenuBar: inMenuBar) : nil
+        // The battery is read every few seconds but what's shown changes far less
+        // often; drawing it means a whole SwiftUI render, so reuse the last image.
+        let battery = monitor.battery
+        let key = MenuBarImageCache.Key(
+            text: text, symbolPosition: symbolPosition, percentInIcon: percentInIcon, style: style,
+            leafColour: style.showsLeaf && leafUsesColour ? leafColour : nil, ink: ink?.description,
+            level: battery.map { Int((($0.chargeFraction(style: .apple) ?? 0) * 1000).rounded()) },
+            charging: battery?.isCharging ?? false, pluggedIn: battery?.isExternalPowerConnected ?? false,
+            scale: NSScreen.main?.backingScaleFactor ?? 2)
+        Image(nsImage: MenuBarImageCache.image(for: key) {
+            Self.render(content(style, text: text, ink: ink), template: !coloured)
+        })
     }
 
     private var style: MenuBarIconStyle {
@@ -58,9 +69,7 @@ struct MenuBarLabel: View {
     }
 
     /// The icon and text as a plain view; `ink` colours everything but a coloured fill or leaf.
-    private func content(_ style: MenuBarIconStyle, ink: NSColor?) -> some View {
-        let text = MenuBarFormatter.render(
-            format, values: monitor.menuBarValues(temperatureUnit: temperatureUnit, capacityStyle: capacityStyle))
+    private func content(_ style: MenuBarIconStyle, text: String, ink: NSColor?) -> some View {
         let showsIcon = symbolPosition != .none || text.isEmpty
         let iconGroup = HStack(spacing: 2) {
             if showsIcon {
@@ -139,8 +148,43 @@ struct MenuBarLabel: View {
     }
 }
 
+/// The last few menu bar images, by everything that goes into drawing them.
+@MainActor
+enum MenuBarImageCache {
+    struct Key: Hashable {
+        var text: String
+        var symbolPosition: BatterySymbolPosition
+        var percentInIcon: Bool
+        var style: MenuBarIconStyle
+        var leafColour: String?
+        var ink: String?
+        /// Charge in tenths of a percent; nil without a battery.
+        var level: Int?
+        var charging: Bool
+        var pluggedIn: Bool
+        var scale: CGFloat
+    }
+
+    /// The status item and the Settings preview each need one; a few more cover
+    /// switching back and forth.
+    private static let capacity = 4
+    private static var entries: [(key: Key, image: NSImage)] = []
+
+    static func image(for key: Key, draw: () -> NSImage) -> NSImage {
+        if let index = entries.firstIndex(where: { $0.key == key }) {
+            let entry = entries.remove(at: index)
+            entries.insert(entry, at: 0)
+            return entry.image
+        }
+        let image = draw()
+        entries.insert((key, image), at: 0)
+        if entries.count > capacity { entries.removeLast() }
+        return image
+    }
+}
+
 /// The battery fill colour and Low Power Mode leaf for the menu bar icon.
-struct MenuBarIconStyle: Equatable {
+struct MenuBarIconStyle: Hashable {
     var fill: SystemBatteryIcon.Colour
     var showsLeaf: Bool
 
@@ -184,7 +228,7 @@ enum SystemBatteryIcon {
     static var isAvailable: Bool { renderer != nil }
 
     /// macOS's colours for the icon's fill: yellow is the one it uses for Low Power Mode.
-    enum Colour {
+    enum Colour: Hashable {
         case none, yellow, red
     }
 

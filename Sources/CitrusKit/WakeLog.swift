@@ -94,7 +94,10 @@ public struct DarkWake: Sendable, Equatable, Codable, Identifiable {
 /// and which needs no administrator rights.
 public enum WakeLog {
     /// The log's text, or `nil` if pmset couldn't run.
-    public static func read() -> String? {
+    /// Reads macOS's power log (`pmset -g log`) and parses it as it streams in,
+    /// a line at a time: the log runs to several megabytes, so it is never held
+    /// whole. Nil if it can't be read.
+    public static func readParsed() -> (wakes: [DarkWake], since: Date?)? {
         let pmset = Process()
         pmset.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
         pmset.arguments = ["-g", "log"]
@@ -104,27 +107,60 @@ public enum WakeLog {
         pmset.standardOutput = output
         pmset.standardError = FileHandle.nullDevice
         guard (try? pmset.run()) != nil else { return nil }
-        let data = output.fileHandleForReading.readDataToEndOfFile()
+        let handle = output.fileHandleForReading
+        let result = parse(chunks: AnyIterator {
+            guard let chunk = try? handle.read(upToCount: 64 * 1024), !chunk.isEmpty else { return nil }
+            return chunk
+        })
         pmset.waitUntilExit()
-        return pmset.terminationStatus == 0 ? String(decoding: data, as: UTF8.self) : nil
+        return pmset.terminationStatus == 0 ? result : nil
     }
 
-    /// The log's brief wakes in order, and the time its records begin.
+    /// Parses the log from pieces of UTF-8 text split anywhere, a line at a time.
+    public static func parse<Chunks: Sequence<Data>>(chunks: Chunks) -> (wakes: [DarkWake], since: Date?) {
+        var parser = Parser()
+        var pending = Data()
+        let newline = UInt8(ascii: "\n")
+        for chunk in chunks {
+            pending.append(chunk)
+            var start = pending.startIndex
+            while let end = pending[start...].firstIndex(of: newline) {
+                if end > start { parser.consume(String(decoding: pending[start..<end], as: UTF8.self)[...]) }
+                start = pending.index(after: end)
+            }
+            pending = Data(pending[start...])
+        }
+        if !pending.isEmpty { parser.consume(String(decoding: pending, as: UTF8.self)[...]) }
+        return parser.result
+    }
+
     public static func parse(_ log: String) -> (wakes: [DarkWake], since: Date?) {
-        var wakes: [DarkWake] = []
-        var since: Date?
+        var parser = Parser()
+        for line in log.split(separator: "\n", omittingEmptySubsequences: true) {
+            parser.consume(line)
+        }
+        return parser.result
+    }
+
+    /// Reads the log a line at a time, so it can be parsed as it streams in.
+    struct Parser {
+        private var wakes: [DarkWake] = []
+        private var since: Date?
         // The wake macOS last scheduled: the request it marks with "*" as sleep begins.
-        var scheduled: (request: String, detail: String)?
+        private var scheduled: (request: String, detail: String)?
         // The latest wake and when it ended, to credit power assertions made during it.
-        var awakeUntil: Date?
+        private var awakeUntil: Date?
         // Assertions since the latest wake: ones made as a wake begins are logged
         // just before it, in the same second.
-        var recent: [(date: Date, holder: String)] = []
-        for line in log.split(separator: "\n", omittingEmptySubsequences: true) {
-            guard line.count > 26, let date = timestamp.date(from: String(line.prefix(25))) else { continue }
+        private var recent: [(date: Date, holder: String)] = []
+
+        var result: (wakes: [DarkWake], since: Date?) { (wakes, since) }
+
+        mutating func consume(_ line: Substring) {
+            guard line.count > 26, let date = timestamp.date(from: String(line.prefix(25))) else { return }
             since = since ?? date
             let rest = line.dropFirst(26)
-            guard let tab = rest.firstIndex(of: "\t") else { continue }
+            guard let tab = rest.firstIndex(of: "\t") else { return }
             let domain = rest[..<tab].trimmingCharacters(in: .whitespaces)
             let message = rest[rest.index(after: tab)...]
             switch domain {
@@ -153,7 +189,6 @@ public enum WakeLog {
                 break
             }
         }
-        return (wakes, since)
     }
 
     private static func darkWake(at date: Date, message: Substring,

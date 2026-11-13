@@ -291,9 +291,31 @@ final class HistoryController: ObservableObject {
             return (sessions, wakes)
         }, finally: cleanup) { sessions, wakes in
             self.sleepSessions = sessions
-            self.darkWakes = wakes
+            self.darkWakes = self.sleepPagesOpen > 0 ? wakes : Self.residentWakes(wakes)
             completion()
         }
+    }
+
+    /// Every wake ever saved is only needed by the Sleep page; the rest of the
+    /// time only recent ones are, for the log imports, which look back about a week.
+    private static let residentWakeSpan: TimeInterval = 9 * 86_400
+    private var sleepPagesOpen = 0
+
+    private static func residentWakes(_ wakes: [DarkWake]) -> [DarkWake] {
+        let cutoff = Date().addingTimeInterval(-residentWakeSpan)
+        return wakes.filter { $0.date >= cutoff }
+    }
+
+    /// Loads every wake while a Sleep page is showing.
+    func sleepPageAppeared() {
+        sleepPagesOpen += 1
+        if sleepPagesOpen == 1 { reloadSleepSessions() }
+    }
+
+    /// Lets go of older wakes once no Sleep page is showing.
+    func sleepPageDisappeared() {
+        sleepPagesOpen = max(0, sleepPagesOpen - 1)
+        if sleepPagesOpen == 0 { darkWakes = Self.residentWakes(darkWakes) }
     }
 
     /// Saves the reasons for brief wakes during sleeps that macOS's power log
@@ -313,8 +335,7 @@ final class HistoryController: ObservableObject {
             return
         }
         Task.detached(priority: .background) {
-            guard let log = WakeLog.read() else { return }
-            let (wakes, since) = WakeLog.parse(log)
+            guard let (wakes, since) = WakeLog.readParsed() else { return }
             // Sessions the log covers from the start.
             guard let since else { return }
             let covered = pending.filter { since <= $0.start }

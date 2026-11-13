@@ -13,10 +13,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         applyDockIconPreference()
         if UserDefaults.standard.startHiddenAtLogin, Self.launchedAtLogin {
-            // SwiftUI opens the main window just after launch; hide it once it's there.
+            // SwiftUI opens the main window just after launch; hide it once it's
+            // there, and only then let it draw, so it's never built just to close.
             for delay in [0, 0.5, 1.5] {
                 DispatchQueue.main.asyncAfter(deadline: .now() + delay) { Self.hideWindows() }
             }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { LaunchState.shared.allowWindowsToDraw() }
+        } else {
+            LaunchState.shared.allowWindowsToDraw()
         }
         updater.start()
         if ProcessInfo.processInfo.environment["CITRUS_GUI_SMOKE_TEST"] == "1" {

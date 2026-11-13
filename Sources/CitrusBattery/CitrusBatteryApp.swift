@@ -155,14 +155,16 @@ struct CitrusBatteryApp: App {
         // A single window: reopening (e.g. from the menu bar) brings it forward
         // instead of creating another copy.
         Window("Citrus Battery", id: "main") {
-            ContentView()
-                .environmentObject(monitor)
-                .environmentObject(history)
-                .environmentObject(navigator)
-                .environmentObject(iosDevices)
-                .environmentObject(notifier)
-                .environmentObject(appDelegate.updater)
-                .frame(minWidth: 760, minHeight: 520)
+            ReleasedWhenClosed {
+                ContentView()
+                    .environmentObject(monitor)
+                    .environmentObject(history)
+                    .environmentObject(navigator)
+                    .environmentObject(iosDevices)
+                    .environmentObject(notifier)
+                    .environmentObject(appDelegate.updater)
+            }
+            .frame(minWidth: 760, minHeight: 520)
         }
         // Sidebar (240) + content column (720 + padding): the header and the whole
         // Battery card fit without resizing, and it stays modest on a 13-inch screen.
@@ -179,10 +181,12 @@ struct CitrusBatteryApp: App {
         .defaultSize(width: 720, height: 640)
 
         Window("Battery Lifetime Data", id: "lifetime") {
-            LifetimeAnalyzer()
-                .environmentObject(monitor)
-                .environmentObject(iosDevices)
-                .environmentObject(navigator)
+            ReleasedWhenClosed {
+                LifetimeAnalyzer()
+                    .environmentObject(monitor)
+                    .environmentObject(iosDevices)
+                    .environmentObject(navigator)
+            }
         }
         .defaultSize(width: 680, height: 560)
 

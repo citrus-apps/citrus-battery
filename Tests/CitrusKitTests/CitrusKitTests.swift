@@ -1488,6 +1488,18 @@ struct FakeSMC: SMCReading {
     2026-10-24 09:35:00 +0100 Wake                \tWake from Deep Idle [CDNVA] : due to smc.sysState.Wake(0x70070000) lid SMC.OutboxNotEmpty Using BATT (Charge:78%)
     """
 
+    @Test(arguments: [1, 7, 64, 100_000]) func streamedLogMatchesWholeLog(chunkSize: Int) {
+        let bytes = Data(Self.log.utf8)
+        let chunks = stride(from: 0, to: bytes.count, by: chunkSize).map {
+            bytes.subdata(in: $0..<min($0 + chunkSize, bytes.count))
+        }
+        let whole = WakeLog.parse(Self.log)
+        let streamed = WakeLog.parse(chunks: chunks)
+        #expect(streamed.wakes == whole.wakes)
+        #expect(streamed.since == whole.since)
+        #expect(!streamed.wakes.isEmpty)
+    }
+
     @Test func readsBriefWakesWithReasons() throws {
         let (wakes, since) = WakeLog.parse(Self.log)
         #expect(since == ISO8601DateFormatter().date(from: "2026-10-24T00:23:10Z"))

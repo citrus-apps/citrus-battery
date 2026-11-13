@@ -2,12 +2,13 @@ import AppKit
 import CitrusKit
 import SwiftUI
 
-/// View and Help menu items.
+/// View and Help menu items. The objects are only read when an item is chosen,
+/// so they aren't observed: that rebuilt every menu on each battery reading.
 struct AppCommands: Commands {
-    @ObservedObject var monitor: BatteryMonitor
-    @ObservedObject var navigator: Navigator
-    @ObservedObject var iosDevices: IOSDeviceMonitor
-    @ObservedObject var updater: AppUpdater
+    let monitor: BatteryMonitor
+    let navigator: Navigator
+    let iosDevices: IOSDeviceMonitor
+    let updater: AppUpdater
     @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {

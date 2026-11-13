@@ -42,6 +42,8 @@ struct SleepView: View {
             }
         }
         .navigationTitle("Sleep")
+        .onAppear { history.sleepPageAppeared() }
+        .onDisappear { history.sleepPageDisappeared() }
     }
 
     private var minimumMinutes: Int { Int(SleepSession.minimumDuration / 60) }
