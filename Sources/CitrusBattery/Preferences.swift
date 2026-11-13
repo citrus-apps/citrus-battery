@@ -1,3 +1,4 @@
+import AppKit
 import CitrusKit
 import Foundation
 import SwiftUI
@@ -18,6 +19,10 @@ enum PreferenceKey {
     static let menuBarFormat = "menuBarFormat"
     static let batterySymbol = "batterySymbol"
     static let batteryPercentInIcon = "batteryPercentInIcon"
+    static let lowPowerIndicator = "lowPowerIndicator"
+    static let leafUsesColour = "leafUsesColour"
+    static let leafColour = "leafColour"
+    static let batteryColouring = "batteryColouring"
     static let showDockIcon = "showDockIcon"
     static let startHiddenAtLogin = "startHiddenAtLogin"
 
@@ -36,6 +41,50 @@ enum BatterySymbolPosition: String, CaseIterable, Identifiable {
     case none, left, right
 
     var id: String { rawValue }
+}
+
+/// How the menu bar shows that Low Power Mode is on.
+enum LowPowerIndicator: String, CaseIterable, Identifiable {
+    /// A yellow battery fill, as macOS's own icon does.
+    case yellow
+    /// A leaf next to the battery icon.
+    case leaf
+    case none
+
+    var id: String { rawValue }
+}
+
+/// When the battery fill is coloured, apart from Low Power Mode.
+enum BatteryColouring: String, CaseIterable, Identifiable {
+    /// Red when nearly empty on battery, as macOS does.
+    case macOS
+    /// Also yellow when low on battery.
+    case chargeLevel
+
+    var id: String { rawValue }
+}
+
+/// A colour stored in UserDefaults as "#RRGGBB" (sRGB).
+enum StoredColour {
+    static let defaultLeaf = "#34C759"
+
+    static func color(_ hex: String) -> Color {
+        Color(nsColor: nsColor(hex) ?? nsColor(defaultLeaf)!)
+    }
+
+    static func nsColor(_ hex: String) -> NSColor? {
+        let digits = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+        guard digits.count == 6, let value = UInt32(digits, radix: 16) else { return nil }
+        return NSColor(srgbRed: CGFloat((value >> 16) & 0xFF) / 255, green: CGFloat((value >> 8) & 0xFF) / 255,
+                       blue: CGFloat(value & 0xFF) / 255, alpha: 1)
+    }
+
+    static func hex(_ color: Color) -> String? {
+        guard let rgb = NSColor(color).usingColorSpace(.sRGB) else { return nil }
+        let channel = { (value: CGFloat) in Int((min(max(value, 0), 1) * 255).rounded()) }
+        return String(format: "#%02X%02X%02X", channel(rgb.redComponent), channel(rgb.greenComponent),
+                      channel(rgb.blueComponent))
+    }
 }
 
 extension UserDefaults {

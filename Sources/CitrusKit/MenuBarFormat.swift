@@ -79,11 +79,19 @@ public struct MenuBarValues: Sendable, Equatable {
 }
 
 public enum MenuBarFormatter {
-    /// Replaces every token in `format`; unavailable values render as "–".
+    /// Replaces every token in `format`; unavailable values render as "–", and a
+    /// token with nothing to show is left out along with a space beside it.
     public static func render(_ format: String, values v: MenuBarValues) -> String {
         var text = format
         for token in MenuBarToken.allCases where text.contains(token.rawValue) {
-            text = text.replacingOccurrences(of: token.rawValue, with: value(for: token, in: v) ?? "–")
+            let value = value(for: token, in: v) ?? "–"
+            if value.isEmpty {
+                for spaced in [" " + token.rawValue, token.rawValue + " ", token.rawValue] {
+                    text = text.replacingOccurrences(of: spaced, with: "")
+                }
+            } else {
+                text = text.replacingOccurrences(of: token.rawValue, with: value)
+            }
         }
         return text.trimmingCharacters(in: .whitespaces)
     }
@@ -99,8 +107,9 @@ public enum MenuBarFormatter {
         case .health:
             return v.healthFraction.map { "\(Int(($0 * 100).rounded()))%" }
         case .timeRemaining:
-            if v.isFullyCharged { return "Full" }
-            if v.isCalculatingTimeRemaining { return "Calculating…" }
+            // "Full" is the status token's to show.
+            if v.isFullyCharged { return "" }
+            if v.isCalculatingTimeRemaining { return "--:--" }
             return v.timeRemainingMinutes.map(DurationFormat.hoursMinutes)
         case .status:
             if v.isFullyCharged { return "Full" }

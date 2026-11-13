@@ -115,6 +115,10 @@ private struct MenuBarSettings: View {
     @AppStorage(PreferenceKey.menuBarFormat) private var format = MenuBarToken.defaultFormat
     @AppStorage(PreferenceKey.batterySymbol) private var symbolPosition = BatterySymbolPosition.left
     @AppStorage(PreferenceKey.batteryPercentInIcon) private var percentInIcon = false
+    @AppStorage(PreferenceKey.lowPowerIndicator) private var lowPowerIndicator = LowPowerIndicator.yellow
+    @AppStorage(PreferenceKey.batteryColouring) private var colouring = BatteryColouring.macOS
+    @AppStorage(PreferenceKey.leafUsesColour) private var leafUsesColour = false
+    @AppStorage(PreferenceKey.leafColour) private var leafColour = StoredColour.defaultLeaf
     @AppStorage(PreferenceKey.showDevicesInMenuBar) private var showDevices = true
     @AppStorage(PreferenceKey.temperatureUnit) private var temperatureUnit = TemperatureUnit.celsius
     @AppStorage(PreferenceKey.capacityStyle) private var capacityStyle = CapacityStyle.defaultStyle
@@ -218,6 +222,30 @@ private struct MenuBarSettings: View {
                         }
                         .pickerStyle(.segmented)
                     }
+                    if SystemBatteryIcon.isAvailable {
+                        Picker("Colour", selection: $colouring) {
+                            Text("Match macOS").tag(BatteryColouring.macOS)
+                            Text("By charge level").tag(BatteryColouring.chargeLevel)
+                        }
+                        .help("Match macOS turns the battery red when nearly empty. By charge level also "
+                            + "turns it yellow at \(Int(MenuBarIconStyle.lowLevel * 100))% or less, on battery.")
+                    }
+                }
+                Picker("Low Power Mode", selection: $lowPowerIndicator) {
+                    Text("Yellow battery (like macOS)").tag(LowPowerIndicator.yellow)
+                    Text("Leaf").tag(LowPowerIndicator.leaf)
+                    Text("Nothing").tag(LowPowerIndicator.none)
+                }
+                .help("How the menu bar shows that Low Power Mode is on.")
+                if lowPowerIndicator == .leaf {
+                    HStack {
+                        Toggle("Colour the leaf", isOn: $leafUsesColour)
+                        Spacer()
+                        ColorPicker("Leaf colour", selection: leafColourBinding, supportsOpacity: false)
+                            .labelsHidden()
+                            .disabled(!leafUsesColour)
+                    }
+                    .help("Off, the leaf matches the menu bar's text.")
                 }
             } header: {
                 Text("Battery icon")
@@ -237,6 +265,11 @@ private struct MenuBarSettings: View {
     }
 
     private var shownTokens: [MenuBarToken] { MenuBarToken.tokens(in: format) }
+
+    private var leafColourBinding: Binding<Color> {
+        Binding(get: { StoredColour.color(leafColour) },
+                set: { leafColour = StoredColour.hex($0) ?? StoredColour.defaultLeaf })
+    }
 
     /// With no text the menu bar shows the icon whatever the setting says.
     private var showsIcon: Bool { symbolPosition != .none || shownTokens.isEmpty }
