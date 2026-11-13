@@ -30,6 +30,10 @@ struct MenuBarLabel: View {
     @AppStorage(PreferenceKey.batteryPercentInIcon) private var percentInIcon = false
     @AppStorage(PreferenceKey.temperatureUnit) private var temperatureUnit = TemperatureUnit.celsius
     @AppStorage(PreferenceKey.capacityStyle) private var capacityStyle = CapacityStyle.defaultStyle
+    @AppStorage(PreferenceKey.lowPowerIndicator) private var lowPowerIndicator = LowPowerIndicator.yellow
+    @AppStorage(PreferenceKey.batteryColouring) private var colouring = BatteryColouring.macOS
+    @AppStorage(PreferenceKey.leafUsesColour) private var leafUsesColour = false
+    @AppStorage(PreferenceKey.leafColour) private var leafColour = StoredColour.defaultLeaf
 
     /// In the menu bar the label follows the menu bar's appearance; elsewhere
     /// (the Settings preview) the app's.
@@ -38,25 +42,43 @@ struct MenuBarLabel: View {
     var body: some View {
         // The status bar drops images embedded in Text, so draw icon and text into
         // one image. Usually a template, which macOS tints for light and dark menu
-        // bars; when the icon is coloured (Low Power Mode, low battery) the image
-        // keeps its colours, so the rest is drawn in the menu bar's own ink.
-        if Self.colour(for: monitor.battery, lowPowerMode: monitor.isLowPowerModeEnabled) == .none {
-            Image(nsImage: Self.render(content(ink: nil), template: true))
+        // bars; when anything is coloured (the battery fill, a coloured leaf) the
+        // image keeps its colours, so the rest is drawn in the menu bar's own ink.
+        let style = self.style
+        if style.fill == .none && !(style.showsLeaf && leafUsesColour) {
+            Image(nsImage: Self.render(content(style, ink: nil), template: true))
         } else {
-            Image(nsImage: Self.render(content(ink: MenuBarInk.current(inMenuBar: inMenuBar)), template: false))
+            Image(nsImage: Self.render(content(style, ink: MenuBarInk.current(inMenuBar: inMenuBar)), template: false))
         }
     }
 
-    /// The icon and text as a plain view; `ink` colours everything but a coloured fill.
-    private func content(ink: NSColor?) -> some View {
+    private var style: MenuBarIconStyle {
+        Self.style(for: monitor.battery, lowPowerMode: monitor.isLowPowerModeEnabled,
+                   indicator: lowPowerIndicator, colouring: colouring)
+    }
+
+    /// The icon and text as a plain view; `ink` colours everything but a coloured fill or leaf.
+    private func content(_ style: MenuBarIconStyle, ink: NSColor?) -> some View {
         let text = MenuBarFormatter.render(
             format, values: monitor.menuBarValues(temperatureUnit: temperatureUnit, capacityStyle: capacityStyle))
-        let icon = Self.icon(for: monitor.battery, showingPercentage: percentInIcon,
-                             lowPowerMode: monitor.isLowPowerModeEnabled, ink: ink)
+        let showsIcon = symbolPosition != .none || text.isEmpty
+        let iconGroup = HStack(spacing: 2) {
+            if showsIcon {
+                Self.icon(for: monitor.battery, showingPercentage: percentInIcon,
+                          colour: ink == nil ? .none : style.fill, ink: ink)
+            }
+            if style.showsLeaf {
+                Image(systemName: "leaf.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(ink != nil && leafUsesColour
+                                     ? StoredColour.color(leafColour) : ink.map(Color.init(nsColor:)) ?? .black)
+            }
+        }
+        let hasIconGroup = showsIcon || style.showsLeaf
         return HStack(spacing: 4) {
-            if symbolPosition == .left || (symbolPosition == .none && text.isEmpty) { icon }
+            if hasIconGroup && symbolPosition != .right { iconGroup }
             if !text.isEmpty { Text(text).monospacedDigit() }
-            if symbolPosition == .right { icon }
+            if hasIconGroup && symbolPosition == .right { iconGroup }
         }
         .font(.system(size: 13))
         .foregroundStyle(ink.map(Color.init(nsColor:)) ?? .black)
@@ -71,32 +93,34 @@ struct MenuBarLabel: View {
         return image
     }
 
-    /// The colour macOS gives the battery icon: yellow in Low Power Mode, red when
-    /// the battery is nearly empty and not plugged in.
-    static func colour(for battery: MacBatterySnapshot?, lowPowerMode: Bool) -> SystemBatteryIcon.Colour {
-        guard let battery, SystemBatteryIcon.isAvailable else { return .none }
+    /// How the icon looks for this battery and the user's settings, or plain
+    /// where macOS's renderer (and so a coloured fill) isn't available.
+    static func style(for battery: MacBatterySnapshot?, lowPowerMode: Bool,
+                      indicator: LowPowerIndicator, colouring: BatteryColouring) -> MenuBarIconStyle {
+        guard let battery else { return MenuBarIconStyle(fill: .none, showsLeaf: false) }
+        var style = MenuBarIconStyle.resolve(
+            level: battery.chargeFraction(style: .apple) ?? 1, onBattery: !battery.isExternalPowerConnected,
+            lowPowerMode: lowPowerMode, indicator: indicator, colouring: colouring)
         #if DEBUG
         switch ProcessInfo.processInfo.environment["CITRUS_DEBUG_ICON_COLOUR"] {
-        case "low": return .low
+        case "low": style.fill = .red
         default: break
         }
         #endif
-        if lowPowerMode { return .lowPowerMode }
-        if !battery.isExternalPowerConnected, (battery.chargeFraction(style: .apple) ?? 1) <= SystemBatteryIcon.lowLevel {
-            return .low
-        }
-        return .none
+        if !SystemBatteryIcon.isAvailable { style.fill = .none }
+        return style
     }
 
     /// The battery icon macOS itself shows in the menu bar, falling back to the
     /// nearest SF Symbol where the system's renderer isn't available.
     /// With `showingPercentage`, the charge is written inside it, as macOS can.
+    /// With `ink`, everything but a coloured fill is drawn in it rather than as a template.
     static func icon(for battery: MacBatterySnapshot?, showingPercentage: Bool = false,
-                     lowPowerMode: Bool = false, ink: NSColor? = nil) -> Image {
+                     colour: SystemBatteryIcon.Colour = .none, ink: NSColor? = nil) -> Image {
         if let battery, let image = SystemBatteryIcon.image(
             level: battery.chargeFraction(style: .apple) ?? 0, charging: battery.isCharging,
             pluggedIn: battery.isExternalPowerConnected, showingPercentage: showingPercentage,
-            colour: ink == nil ? .none : colour(for: battery, lowPowerMode: lowPowerMode), ink: ink) {
+            colour: colour, ink: ink) {
             return Image(nsImage: image)
         }
         return Image(systemName: symbolName(for: battery))
@@ -112,6 +136,29 @@ struct MenuBarLabel: View {
         case 0.13..<0.38: return "battery.25percent"
         default: return "battery.0percent"
         }
+    }
+}
+
+/// The battery fill colour and Low Power Mode leaf for the menu bar icon.
+struct MenuBarIconStyle: Equatable {
+    var fill: SystemBatteryIcon.Colour
+    var showsLeaf: Bool
+
+    /// At or below this charge, on battery, "By charge level" turns the fill yellow.
+    static let lowLevel = 0.20
+
+    /// macOS's rules by default: yellow in Low Power Mode, then red when nearly
+    /// empty on battery. The Low Power Mode indicator can be a leaf instead, or
+    /// nothing, and the fill can also turn yellow when low.
+    static func resolve(level: Double, onBattery: Bool, lowPowerMode: Bool,
+                        indicator: LowPowerIndicator, colouring: BatteryColouring) -> MenuBarIconStyle {
+        let showsLeaf = lowPowerMode && indicator == .leaf
+        if lowPowerMode && indicator == .yellow { return MenuBarIconStyle(fill: .yellow, showsLeaf: false) }
+        if onBattery && level <= SystemBatteryIcon.lowLevel { return MenuBarIconStyle(fill: .red, showsLeaf: showsLeaf) }
+        if colouring == .chargeLevel && onBattery && level <= lowLevel {
+            return MenuBarIconStyle(fill: .yellow, showsLeaf: showsLeaf)
+        }
+        return MenuBarIconStyle(fill: .none, showsLeaf: showsLeaf)
     }
 }
 
@@ -136,27 +183,28 @@ enum SystemBatteryIcon {
 
     static var isAvailable: Bool { renderer != nil }
 
-    /// macOS's colours for the icon's fill.
+    /// macOS's colours for the icon's fill: yellow is the one it uses for Low Power Mode.
     enum Colour {
-        case none, lowPowerMode, low
+        case none, yellow, red
     }
 
     /// At or below this charge, on battery, the fill turns red.
-    static let lowLevel = 0.10
+    nonisolated static let lowLevel = 0.10
 
     /// The icon, or nil where the renderer isn't available. With `showingPercentage`
-    /// the charge is cut out of the icon as digits. Uncoloured, it is a template
-    /// image; coloured, everything but the fill is drawn in `ink`.
+    /// the charge is cut out of the icon as digits. With `ink`, everything but a
+    /// coloured fill is drawn in it; without, it is an uncoloured template image.
     static func image(level: Double, charging: Bool, pluggedIn: Bool, showingPercentage: Bool,
                       colour: Colour = .none, ink: NSColor? = nil) -> NSImage? {
         guard let renderer,
               let image = renderer.render(renderer.cache, renderer.selector, min(max(level, 0), 1),
-                                          charging, pluggedIn, false, false, colour == .lowPowerMode,
-                                          showingPercentage, colour == .low) else { return nil }
+                                          charging, pluggedIn, false, false, colour == .yellow,
+                                          showingPercentage, colour == .red) else { return nil }
         if colour != .none, let ink {
             return inked(image, with: ink)
         }
         guard let solid = solidFill(image) else { return nil }
+        if let ink { return inked(solid, with: ink) }
         solid.isTemplate = true
         return solid
     }

@@ -671,10 +671,19 @@ struct FakeSMC: SMCReading {
         var values = MenuBarValues(isCharging: true, isExternalPowerConnected: true)
         #expect(MenuBarFormatter.render("%CHARGE% %STATUS%", values: values) == "– Charging")
         values.isFullyCharged = true
-        #expect(MenuBarFormatter.render("%TIMEREM% %STATUS%", values: values) == "Full Full")
+        #expect(MenuBarFormatter.render("%TIMEREM% %STATUS%", values: values) == "Full")
         #expect(MenuBarFormatter.render("Bat: %CHARGE%", values: Self.values) == "Bat: 76%")
         let calculating = MenuBarValues(isCalculatingTimeRemaining: true)
-        #expect(MenuBarFormatter.render("%TIMEREM%", values: calculating) == "Calculating…")
+        #expect(MenuBarFormatter.render("%TIMEREM%", values: calculating) == "--:--")
+    }
+
+    @Test func fullyChargedLeavesOutTimeRemaining() {
+        var values = Self.values
+        values.isFullyCharged = true
+        #expect(MenuBarFormatter.render("%TIMEREM%", values: values) == "")
+        #expect(MenuBarFormatter.render("%CHARGE% %TIMEREM%", values: values) == "76%")
+        #expect(MenuBarFormatter.render("%CHARGE% %TIMEREM% %CC%", values: values) == "76% 46")
+        #expect(MenuBarFormatter.render("%TIMEREM% %CHARGE%", values: values) == "76%")
     }
 
     @Test func tokensInOrderIgnoringOtherText() {
