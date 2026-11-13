@@ -41,6 +41,10 @@ Your battery history and preferences are kept.
 - **Tidier menu bar text.** Time remaining shows "--:--" instead of "Calculating…"
   while macOS works it out, and nothing when fully charged or when charging is paused
   on the adapter, instead of "Full" twice alongside the charge status or a lone "–".
+- **Much less memory.** Running in the menu bar, Citrus Battery now uses about half
+  the memory it did, or less: a closed window no longer stays in memory redrawing
+  itself, starting hidden at login no longer builds the window at all, and the menu
+  bar icon is only redrawn when it changes.
 
 ## New in 1.3
 
