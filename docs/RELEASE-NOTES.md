@@ -39,8 +39,8 @@ Your battery history and preferences are kept.
   less on battery, before macOS's red when it's nearly empty. By default it still
   matches macOS.
 - **Tidier menu bar text.** Time remaining shows "--:--" instead of "Calculating…"
-  while macOS works it out, and nothing when fully charged, so "Full" no longer
-  appears twice alongside the charge status.
+  while macOS works it out, and nothing when fully charged or when charging is paused
+  on the adapter, instead of "Full" twice alongside the charge status or a lone "–".
 
 ## New in 1.3
 

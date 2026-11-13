@@ -107,8 +107,9 @@ public enum MenuBarFormatter {
         case .health:
             return v.healthFraction.map { "\(Int(($0 * 100).rounded()))%" }
         case .timeRemaining:
-            // "Full" is the status token's to show.
-            if v.isFullyCharged { return "" }
+            // Nothing to count down when full or when charging is paused on the
+            // adapter; "Full" and "Not charging" are the status token's to show.
+            if v.isFullyCharged || (v.isExternalPowerConnected && !v.isCharging) { return "" }
             if v.isCalculatingTimeRemaining { return "--:--" }
             return v.timeRemainingMinutes.map(DurationFormat.hoursMinutes)
         case .status:

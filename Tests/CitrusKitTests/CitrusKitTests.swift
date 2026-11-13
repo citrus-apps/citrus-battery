@@ -686,6 +686,14 @@ struct FakeSMC: SMCReading {
         #expect(MenuBarFormatter.render("%TIMEREM% %CHARGE%", values: values) == "76%")
     }
 
+    @Test func pausedChargingLeavesOutTimeRemaining() {
+        let paused = MenuBarValues(chargeFraction: 0.95, isCharging: false, isExternalPowerConnected: true)
+        #expect(MenuBarFormatter.render("%TIMEREM%", values: paused) == "")
+        #expect(MenuBarFormatter.render("%CHARGE% %TIMEREM% %STATUS%", values: paused) == "95% Not charging")
+        // On battery with no estimate, the dash still says the value is unavailable.
+        #expect(MenuBarFormatter.render("%TIMEREM%", values: MenuBarValues()) == "–")
+    }
+
     @Test func tokensInOrderIgnoringOtherText() {
         #expect(MenuBarToken.tokens(in: "Bat: %HEALTH% %CHARGE% (%HEALTH%)") == [.health, .charge])
         #expect(MenuBarToken.tokens(in: "") == [])
