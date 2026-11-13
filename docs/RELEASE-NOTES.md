@@ -1,4 +1,4 @@
-Citrus Battery 1.3 is a free, open source battery monitor for macOS, iPhone and iPad.
+Citrus Battery 1.3.1 is a free, open source battery monitor for macOS, iPhone and iPad.
 Please report problems through GitHub Issues.
 
 ## Download the application
@@ -7,8 +7,8 @@ Please report problems through GitHub Issues.
 
 | Your Mac | Application download |
 | --- | --- |
-| **Apple Silicon — M1 or later** | **[Download Citrus Battery for Apple Silicon](https://github.com/rdna897/citrus-battery/releases/download/v1.3/CitrusBattery-1.3-arm64-macOS13.0.zip)** (`arm64`) |
-| **Intel** | **[Download Citrus Battery for Intel](https://github.com/rdna897/citrus-battery/releases/download/v1.3/CitrusBattery-1.3-x86_64-macOS13.0.zip)** (`x86_64`) |
+| **Apple Silicon — M1 or later** | **[Download Citrus Battery for Apple Silicon](https://github.com/rdna897/citrus-battery/releases/download/v1.3.1/CitrusBattery-1.3.1-arm64-macOS13.0.zip)** (`arm64`) |
+| **Intel** | **[Download Citrus Battery for Intel](https://github.com/rdna897/citrus-battery/releases/download/v1.3.1/CitrusBattery-1.3.1-x86_64-macOS13.0.zip)** (`x86_64`) |
 
 To check which Mac you have, open **Apple menu → About This Mac**. An Apple chip
 means Apple Silicon; an Intel processor means Intel.
@@ -29,6 +29,18 @@ See [Apple's first-launch guidance](https://support.apple.com/en-gb/102445).
 **Using 1.1 or later?** Citrus Battery offers this update itself. **Upgrading from 1.0.1 or
 earlier?** Quit Citrus Battery and replace the app in Applications with this version.
 Your battery history and preferences are kept.
+
+## New in 1.3.1
+
+- **Low Power Mode, your way.** In Settings → Menu Bar, Low Power Mode can show as a
+  yellow battery like macOS, a leaf next to the battery icon, or nothing. The leaf
+  matches the menu bar's text, or takes any colour you pick.
+- **Colour by charge level.** Optionally, the battery icon also turns yellow at 20% or
+  less on battery, before macOS's red when it's nearly empty. By default it still
+  matches macOS.
+- **Tidier menu bar text.** Time remaining shows "--:--" instead of "Calculating…"
+  while macOS works it out, and nothing when fully charged, so "Full" no longer
+  appears twice alongside the charge status.
 
 ## New in 1.3
 

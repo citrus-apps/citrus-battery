@@ -9,7 +9,7 @@ reach 80%, checks your charger, and records everything the battery's gauge has
 logged over its life. It's free, open source, and every feature
 is included.
 
-> **Version 1.3.** Data availability varies by hardware and OS version.
+> **Version 1.3.1.** Data availability varies by hardware and OS version.
 
 <p align="center">
   <a href="assets/screenshots/mac-dashboard.png">
@@ -233,7 +233,8 @@ The screenshots above follow your GitHub theme. To see them in the other appeara
 **Menu bar and notifications**
 - macOS's own battery icon, drawn by macOS: filled to the exact charge, with a bolt
   while charging and a plug when charging is paused, yellow in Low Power Mode and red
-  when nearly empty. Optionally with the percentage inside, as macOS can show it.
+  when nearly empty. Optionally with the percentage inside, as macOS can show it, a
+  leaf in any colour for Low Power Mode instead, or yellow when the charge is low.
 - Status text built from the items you pick: charge, cycles, temperature, health,
   time remaining, charge status, system usage, battery in/out and charger.
 - A menu styled like Control Center's, with glass on macOS 26 or later: charge and
