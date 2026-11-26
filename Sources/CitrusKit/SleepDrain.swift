@@ -67,6 +67,19 @@ public struct SleepSession: Sendable, Equatable, Identifiable {
     /// rests after heavy use; rises up to this share of a full charge count as no loss.
     public static let restingRise = 0.01
 
+    /// Without the gauge's own update time, a reading this long after waking is
+    /// taken as fresh: the gauge refreshes about once a minute.
+    public static let refreshWait: TimeInterval = 2 * 60
+
+    /// Whether `after` was read by the gauge since waking, rather than being the
+    /// charge from before the sleep. Batteries that don't report when the gauge
+    /// last updated count as fresh once the charge has changed, or after `refreshWait`.
+    public static func isFresh(_ after: MacBatterySnapshot, before: MacBatterySnapshot,
+                               wokeAt: Date, now: Date = Date()) -> Bool {
+        if let updated = after.gaugeUpdated { return updated >= wokeAt }
+        return after.currentCapacity != before.currentCapacity || now.timeIntervalSince(wokeAt) >= refreshWait
+    }
+
     /// A session from readings taken just before sleep and after waking, or `nil`
     /// when it can't be measured: too short, on power at either end, or charged in between.
     public init?(before: MacBatterySnapshot, after: MacBatterySnapshot, sleptAt: Date, wokeAt: Date) {

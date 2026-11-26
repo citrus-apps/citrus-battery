@@ -204,7 +204,7 @@ final class HistoryController: ObservableObject {
         if let pending = pendingMeasurement {
             pending.task.cancel()
             pendingMeasurement = nil
-            if let reading, (reading.gaugeUpdated ?? .distantPast) >= pending.wokeAt {
+            if let reading, SleepSession.isFresh(reading, before: pending.sleep.battery, wokeAt: pending.wokeAt) {
                 finishMeasurement(sleep: pending.sleep, wokeAt: pending.wokeAt, after: reading)
             } else {
                 let slept = Self.describe(pending.sleep.date, pending.wokeAt)
@@ -234,7 +234,7 @@ final class HistoryController: ObservableObject {
         let task = Task { [weak self] in
             // The gauge refreshes about once a minute; allow for a slow first refresh.
             var after = MacBatteryReader.read()
-            for _ in 0..<60 where after == nil || (after?.gaugeUpdated ?? wokeAt) < wokeAt {
+            for _ in 0..<60 where !(after.map { SleepSession.isFresh($0, before: sleep.battery, wokeAt: wokeAt) } ?? false) {
                 try? await Task.sleep(for: .seconds(5))
                 // Cancelled when the Mac sleeps again first (see `willSleep`).
                 if Task.isCancelled { return }
@@ -242,7 +242,7 @@ final class HistoryController: ObservableObject {
             }
             guard let self, !Task.isCancelled else { return }
             self.pendingMeasurement = nil
-            guard let after, (after.gaugeUpdated ?? wokeAt) >= wokeAt else {
+            guard let after, SleepSession.isFresh(after, before: sleep.battery, wokeAt: wokeAt) else {
                 let slept = Self.describe(sleep.date, wokeAt)
                 Self.log.notice("Sleep \(slept, privacy: .public) not measured: no fresh reading after waking")
                 return

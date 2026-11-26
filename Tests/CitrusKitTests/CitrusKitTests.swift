@@ -111,6 +111,25 @@ struct FakeSMC: SMCReading {
         #expect(snapshot.failures == .openThermistor)
     }
 
+    @Test func readingAfterWakingIsFreshOnlyOnceTheGaugeHasRefreshed() {
+        func battery(_ capacity: Int, updated: Date? = nil) -> MacBatterySnapshot {
+            var registry: [String: Any] = ["AppleRawCurrentCapacity": capacity, "AppleRawMaxCapacity": 5000,
+                                           "IsCharging": false, "ExternalConnected": false]
+            if let updated { registry["UpdateTime"] = Int(updated.timeIntervalSince1970) }
+            return MacBatterySnapshot(registry: registry, smc: nil, powerSource: nil)
+        }
+        let woke = Date(timeIntervalSince1970: 1_800_000_000)
+        let before = battery(4000)
+        // The gauge's own time decides when there is one, even if the charge is unchanged.
+        #expect(SleepSession.isFresh(battery(4000, updated: woke + 10), before: before, wokeAt: woke, now: woke + 10))
+        #expect(!SleepSession.isFresh(battery(3900, updated: woke - 600), before: before, wokeAt: woke, now: woke + 10))
+        // Without it, an unchanged charge straight after waking may be the reading from before the sleep.
+        #expect(!SleepSession.isFresh(battery(4000), before: before, wokeAt: woke, now: woke + 5))
+        #expect(SleepSession.isFresh(battery(3900), before: before, wokeAt: woke, now: woke + 5))
+        #expect(SleepSession.isFresh(battery(4000), before: before, wokeAt: woke,
+                                     now: woke + SleepSession.refreshWait))
+    }
+
     @Test func appleStylePrefersMacOSPercentage() {
         let snapshot = MacBatterySnapshot(
             registry: Self.appleSilicon, smc: nil,
