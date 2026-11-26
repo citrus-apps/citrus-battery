@@ -286,11 +286,10 @@ final class HistoryController: ObservableObject {
         perform({ store in
             // Only this Mac's: a backup from another Mac may hold its sleeps too.
             let wakes = try store.darkWakes(mac: mac)
-            let sessions = try store.sleepSessions(mac: mac).map { session in
-                guard session.wakesLogged else { return session }
-                var counted = session
-                counted.briefWakes = WakeBreakdown.wakes(wakes, during: [session]).count
-                return counted
+            var sessions = try store.sleepSessions(mac: mac)
+            let counts = WakeBreakdown.counts(wakes, during: sessions)
+            for index in sessions.indices where sessions[index].wakesLogged {
+                sessions[index].briefWakes = counts[index]
             }
             return (sessions, wakes)
         }, finally: cleanup) { sessions, wakes in

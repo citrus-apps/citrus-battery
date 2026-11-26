@@ -1587,6 +1587,22 @@ struct FakeSMC: SMCReading {
                                                 "com.apple.intelligenceflow.toolbox.update.fastpass"])
         #expect(WakeBreakdown.wakes(wakes, during: []).isEmpty)
     }
+
+    @Test func countsWakesForEachSleepInOnePass() {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        func sleep(_ from: Double, _ to: Double) -> SleepSession {
+            SleepSession(start: start + from * 3600, end: start + to * 3600, startCapacity: 4000, endCapacity: 3990,
+                         fullChargeCapacity: 4500)
+        }
+        let wakes = [0.5, 1, 2.5, 4, 4.5, 6, 9].map { DarkWake(date: start + $0 * 3600, reason: .other) }
+        // Out of order, one overlapping another (as a backup can bring), one with no wakes.
+        let sleeps = [sleep(3, 5), sleep(0, 2), sleep(4.2, 7), sleep(7.5, 8)]
+        #expect(WakeBreakdown.counts(wakes, during: sleeps) == [2, 2, 2, 0])
+        #expect(WakeBreakdown.counts(wakes, during: sleeps)
+            == sleeps.map { WakeBreakdown.wakes(wakes, during: [$0]).count })
+        #expect(WakeBreakdown.counts([], during: sleeps) == [0, 0, 0, 0])
+        #expect(WakeBreakdown.counts(wakes, during: []).isEmpty)
+    }
 }
 
 @Suite struct AppEnergyTests {

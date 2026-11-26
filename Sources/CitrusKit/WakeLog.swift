@@ -320,6 +320,25 @@ public struct WakeBreakdown: Sendable, Equatable {
         return result
     }
 
+    /// How many of the wakes (sorted by time) fall within each session, in the
+    /// sessions' order, in one pass over both.
+    public static func counts(_ wakes: [DarkWake], during sessions: [SleepSession]) -> [Int] {
+        let order = sessions.indices.sorted { sessions[$0].start < sessions[$1].start }
+        var counts = [Int](repeating: 0, count: sessions.count)
+        var position = 0
+        for wake in wakes {
+            while position < order.count, sessions[order[position]].interval.end < wake.date { position += 1 }
+            guard position < order.count else { break }
+            // Sessions can overlap (sleeps from a backup); count the wake in each.
+            var next = position
+            while next < order.count, sessions[order[next]].start <= wake.date {
+                if sessions[order[next]].interval.contains(wake.date) { counts[order[next]] += 1 }
+                next += 1
+            }
+        }
+        return counts
+    }
+
     public static func == (lhs: WakeBreakdown, rhs: WakeBreakdown) -> Bool {
         lhs.total == rhs.total && lhs.reasons.elementsEqual(rhs.reasons) { $0 == $1 }
             && lhs.tasks.elementsEqual(rhs.tasks) { $0 == $1 }
