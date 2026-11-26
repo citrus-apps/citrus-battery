@@ -29,10 +29,14 @@ struct AppCommands: Commands {
             Button("History") { show(.history) }
                 .keyboardShortcut("y")
             Button("Sleep") { show(.sleep) }
-            Button("Advanced Viewer") { openWindow(id: "advanced", value: advancedTarget) }
+            Button("Advanced Viewer") {
+                LaunchState.shared.windowRequested()
+                openWindow(id: "advanced", value: advancedTarget)
+            }
                 .keyboardShortcut("i", modifiers: [.command, .option])
             Button("Battery Lifetime Data") {
                 navigator.lifetimeTarget = advancedTarget
+                LaunchState.shared.windowRequested()
                 openWindow(id: "lifetime")
             }
                 .keyboardShortcut("l", modifiers: [.command, .option])
@@ -62,6 +66,7 @@ struct AppCommands: Commands {
 
     private func show(_ item: SidebarItem) {
         navigator.selection = item
+        LaunchState.shared.windowRequested()
         openWindow(id: "main")
     }
 }

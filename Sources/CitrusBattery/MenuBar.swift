@@ -533,6 +533,7 @@ struct MenuBarPanel: View {
     private func show(_ item: SidebarItem) {
         closePanel()
         navigator.selection = item
+        LaunchState.shared.windowRequested()
         openWindow(id: "main")
         NSApp.activate(ignoringOtherApps: true)
     }

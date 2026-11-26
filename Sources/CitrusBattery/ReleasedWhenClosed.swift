@@ -26,9 +26,26 @@ struct ReleasedWhenClosed<Content: View>: View {
 final class LaunchState: ObservableObject {
     static let shared = LaunchState()
     @Published private(set) var windowsMayDraw = false
+    /// Whether a login launch is still closing the window SwiftUI opens at launch.
+    private(set) var hidesLaunchWindow = false
 
     func allowWindowsToDraw() {
         if !windowsMayDraw { windowsMayDraw = true }
+    }
+
+    func startHidingLaunchWindow() {
+        hidesLaunchWindow = true
+    }
+
+    func stopHidingLaunchWindow() {
+        hidesLaunchWindow = false
+    }
+
+    /// A window the person asked for: it must not be taken for the launch window
+    /// and closed, and it draws straight away.
+    func windowRequested() {
+        stopHidingLaunchWindow()
+        allowWindowsToDraw()
     }
 }
 

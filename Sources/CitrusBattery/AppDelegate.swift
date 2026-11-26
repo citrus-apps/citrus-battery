@@ -15,8 +15,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if UserDefaults.standard.startHiddenAtLogin, Self.launchedAtLogin {
             // SwiftUI opens the main window just after launch; hide it once it's
             // there, and only then let it draw, so it's never built just to close.
+            // Once it's hidden, or the person opens a window, nothing more is closed.
+            LaunchState.shared.startHidingLaunchWindow()
             for delay in [0, 0.5, 1.5] {
-                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { Self.hideWindows() }
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    guard LaunchState.shared.hidesLaunchWindow else { return }
+                    if Self.hideWindows() { LaunchState.shared.stopHidingLaunchWindow() }
+                }
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { LaunchState.shared.allowWindowsToDraw() }
         } else {
@@ -88,15 +93,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Leaves the app in the menu bar, or minimised in the Dock without one.
-    private static func hideWindows() {
+    /// Returns whether there was a window to hide.
+    private static func hideWindows() -> Bool {
         let showInMenuBar = UserDefaults.standard.showInMenuBar
+        var hid = false
         for window in NSApp.windows where window.isVisible && window.level == .normal && window.canBecomeMain {
             if showInMenuBar {
                 window.close()
+                hid = true
             } else if !window.isMiniaturized {
                 window.miniaturize(nil)
+                hid = true
             }
         }
+        return hid
+    }
+
+    /// Clicking the Dock icon asks for a window.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        LaunchState.shared.windowRequested()
+        return true
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
