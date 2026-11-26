@@ -225,6 +225,10 @@ final class HistoryController: ObservableObject {
             let period = DateInterval(start: start, end: Date())
             perform { try $0.insertSleepPeriod(period) }
             sleepPeriods.append(period)
+            // Also pruned with the power minutes, but a Mac that reports no system
+            // power never saves any.
+            let cutoff = Date().addingTimeInterval(-PowerTimeline.retention)
+            sleepPeriods.removeAll { $0.end < cutoff }
         }
         sleepStarted = nil
         guard let sleep = sleepReading else { return }
