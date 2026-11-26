@@ -10,6 +10,8 @@ enum UpdateStatus: Equatable {
     case upToDate
     case available(version: String)
     case failed
+    /// The updater couldn't start, so there are no checks this session.
+    case couldNotStart
 }
 
 /// Sparkle owns scheduling, preferences, signature verification and installation.
@@ -54,7 +56,10 @@ final class AppUpdater: ObservableObject {
         updater.publisher(for: \.lastUpdateCheckDate).assign(to: &$lastUpdateCheckDate)
     }
 
-    var isAvailable: Bool { updater != nil }
+    /// Whether this is a packaged copy that can update itself.
+    var isPackaged: Bool { updater != nil }
+
+    var isAvailable: Bool { updater != nil && status != .couldNotStart }
 
     func start() {
         guard !started, let updater else { return }
@@ -63,6 +68,7 @@ final class AppUpdater: ObservableObject {
             try updater.start()
         } catch {
             NSLog("Citrus Battery couldn't start the updater: %@", error.localizedDescription)
+            status = .couldNotStart
         }
     }
 

@@ -416,6 +416,8 @@ private struct UpdateSettings: View {
             Text("Version \(newVersion) is available")
         case .failed:
             Text("Couldn't check for updates. Check your internet connection and try again.")
+        case .couldNotStart:
+            Text("Updates aren't working in this copy. Download the latest version from GitHub Releases.")
         case .idle:
             if let date = updater.lastUpdateCheckDate {
                 Text("Last checked \(date.formatted(.dateTime.month().day().hour().minute()))")
@@ -448,7 +450,7 @@ private struct UpdateSettings: View {
                     }
                 }
             } footer: {
-                if !updater.isAvailable {
+                if !updater.isPackaged {
                     SettingsNote("Updates are available in the packaged application. Download it from GitHub Releases.")
                 }
             }
