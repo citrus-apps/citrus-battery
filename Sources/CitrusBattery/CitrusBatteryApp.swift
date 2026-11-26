@@ -42,7 +42,7 @@ enum Entry {
         if arguments.contains("--advanced") {
             let info = MacInfo.read()
             var sections = AdvancedInfo.mac(info: info, marketingName: MacInfo.marketingName())
-            for listing in IOSDeviceReader.connectedDevices() {
+            for listing in IOSDeviceReader.connectedDevices() ?? [] {
                 if let raw = IOSDeviceReader.readRaw(listing) {
                     sections += AdvancedInfo.device(info: raw.info, battery: raw.battery, pack: raw.pack)
                 }
@@ -53,7 +53,7 @@ enum Entry {
             return
         }
         if arguments.contains("--ios-raw") {
-            for listing in IOSDeviceReader.connectedDevices() {
+            for listing in IOSDeviceReader.connectedDevices() ?? [] {
                 guard let raw = IOSDeviceReader.readRaw(listing) else { print("\(listing.udid): not readable"); continue }
                 for (title, value) in [("INFO", raw.info), ("BATTERY", raw.battery), ("PACK", raw.pack), ("GESTALT", raw.gestalt)] {
                     print("===== \(title)")
@@ -81,7 +81,7 @@ enum Entry {
 
 /// `CitrusBattery --ios` lists connected iPhones/iPads and their battery data.
 private func dumpIOSDevices() {
-    let devices = IOSDeviceReader.connectedDevices()
+    let devices = IOSDeviceReader.connectedDevices() ?? []
     if devices.isEmpty {
         print("No iPhone or iPad found. Connect one with a cable, unlock it, and tap Trust.")
     }

@@ -81,10 +81,11 @@ public enum IOSDeviceReader {
     }
 
     /// Devices currently visible over USB, or over WiFi when "Show this iPhone when
-    /// on Wi-Fi" is enabled in Finder.
-    public static func connectedDevices() -> [Listing] {
+    /// on Wi-Fi" is enabled in Finder; nil when usbmuxd couldn't be asked.
+    public static func connectedDevices() -> [Listing]? {
         var devices = [cid_device](repeating: cid_device(), count: 32)
         let count = Int(cid_list_devices(&devices, Int32(devices.count)))
+        guard count >= 0 else { return nil }
         return devices.prefix(count).map { device in
             var udid = device.udid
             let text = withUnsafeBytes(of: &udid) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }

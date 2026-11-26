@@ -22,7 +22,8 @@ typedef enum {
     CID_ERROR,
 } cid_status;
 
-/// Fills up to `max` devices and returns how many there are (USB first).
+/// Fills up to `max` devices and returns how many there are (USB first), or -1
+/// when the list couldn't be read, as distinct from there being no devices.
 int cid_list_devices(cid_device *devices, int max);
 
 /// Binary property lists returned by `cid_read`; free each with `cid_free`.

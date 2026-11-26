@@ -14,7 +14,7 @@
 int cid_list_devices(cid_device *devices, int max) {
     idevice_info_t *list = NULL;
     int count = 0;
-    if (idevice_get_device_list_extended(&list, &count) != IDEVICE_E_SUCCESS) return 0;
+    if (idevice_get_device_list_extended(&list, &count) != IDEVICE_E_SUCCESS) return -1;
 
     int written = 0;
     // USB connections first, so a device reachable both ways is read over USB.

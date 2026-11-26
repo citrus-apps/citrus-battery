@@ -68,7 +68,12 @@ final class IOSDeviceMonitor: ObservableObject {
         guard !isRefreshing else { return }
         isRefreshing = true
         Task.detached(priority: .utility) {
-            let listings = IOSDeviceReader.connectedDevices()
+            // A failed listing says nothing about which devices are connected, so
+            // the last known states stay until a listing succeeds.
+            guard let listings = IOSDeviceReader.connectedDevices() else {
+                await MainActor.run { [weak self] in self?.isRefreshing = false }
+                return
+            }
             var results: [(IOSDeviceReader.Listing, IOSDeviceStatus)] = []
             let debug = ProcessInfo.processInfo.environment["CITRUS_DEBUG_DEVICES"] != nil
             for listing in listings {
