@@ -234,7 +234,8 @@ The screenshots above follow your GitHub theme. To see them in the other appeara
 - macOS's own battery icon, drawn by macOS: filled to the exact charge, with a bolt
   while charging and a plug when charging is paused, yellow in Low Power Mode and red
   when nearly empty. Optionally with the percentage inside, as macOS can show it, a
-  leaf in any colour for Low Power Mode instead, or yellow when the charge is low.
+  leaf in any colour beside or on the battery for Low Power Mode instead, or yellow
+  when the charge is low.
 - Status text built from the items you pick: charge, cycles, temperature, health,
   time remaining, charge status, system usage, battery in/out and charger.
 - A menu styled like Control Center's, with glass on macOS 26 or later: charge and

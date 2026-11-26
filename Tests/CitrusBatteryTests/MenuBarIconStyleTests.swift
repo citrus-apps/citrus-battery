@@ -28,6 +28,30 @@ import Testing
         #expect(Self.style(lowPowerMode: false, indicator: .leaf).showsLeaf == false)
     }
 
+    @Test func leafCanSitOnTheIcon() {
+        #expect(Self.style(lowPowerMode: true, indicator: .leafOnBattery)
+            == MenuBarIconStyle(fill: .none, showsLeaf: true, leafOnIcon: true))
+        #expect(Self.style(level: 0.05, lowPowerMode: true, indicator: .leafOnBattery)
+            == MenuBarIconStyle(fill: .red, showsLeaf: true, leafOnIcon: true))
+        #expect(Self.style(lowPowerMode: false, indicator: .leafOnBattery)
+            == MenuBarIconStyle(fill: .none, showsLeaf: false))
+        #expect(Self.style(lowPowerMode: true, indicator: .leaf).leafOnIcon == false)
+    }
+
+    @Test func leafMovesBesideAnIconWithAMark() {
+        func mark(percent: Bool = false, charging: Bool = false, pluggedIn: Bool = false, system: Bool = true) -> Bool {
+            MenuBarLabel.iconHasMark(percentInIcon: percent, charging: charging, pluggedIn: pluggedIn, systemIcon: system)
+        }
+        #expect(!mark())
+        #expect(mark(percent: true))
+        #expect(mark(charging: true, pluggedIn: true))
+        #expect(mark(pluggedIn: true))
+        // The fallback symbol has no digits or plug, only a bolt while charging.
+        #expect(!mark(percent: true, system: false))
+        #expect(!mark(pluggedIn: true, system: false))
+        #expect(mark(charging: true, pluggedIn: true, system: false))
+    }
+
     @Test func noIndicatorLeavesTheIconPlain() {
         #expect(Self.style(lowPowerMode: true, indicator: .none) == MenuBarIconStyle(fill: .none, showsLeaf: false))
         #expect(Self.style(level: 0.05, lowPowerMode: true, indicator: .none).fill == .red)

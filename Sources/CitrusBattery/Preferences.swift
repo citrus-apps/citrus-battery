@@ -49,6 +49,8 @@ enum LowPowerIndicator: String, CaseIterable, Identifiable {
     case yellow
     /// A leaf next to the battery icon.
     case leaf
+    /// A leaf drawn over the battery icon, cut out of it.
+    case leafOnBattery
     case none
 
     var id: String { rawValue }

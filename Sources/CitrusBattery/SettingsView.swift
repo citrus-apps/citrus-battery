@@ -233,11 +233,12 @@ private struct MenuBarSettings: View {
                 }
                 Picker("Low Power Mode", selection: $lowPowerIndicator) {
                     Text("Yellow battery (like macOS)").tag(LowPowerIndicator.yellow)
-                    Text("Leaf").tag(LowPowerIndicator.leaf)
+                    Text("Leaf beside the battery").tag(LowPowerIndicator.leaf)
+                    Text("Leaf on the battery").tag(LowPowerIndicator.leafOnBattery)
                     Text("Nothing").tag(LowPowerIndicator.none)
                 }
                 .help("How the menu bar shows that Low Power Mode is on.")
-                if lowPowerIndicator == .leaf {
+                if lowPowerIndicator == .leaf || lowPowerIndicator == .leafOnBattery {
                     HStack {
                         Toggle("Colour the leaf", isOn: $leafUsesColour)
                         Spacer()

@@ -71,16 +71,27 @@ struct MenuBarLabel: View {
     /// The icon and text as a plain view; `ink` colours everything but a coloured fill or leaf.
     private func content(_ style: MenuBarIconStyle, text: String, ink: NSColor?) -> some View {
         let showsIcon = symbolPosition != .none || text.isEmpty
+        let iconHasMark = Self.iconHasMark(
+            percentInIcon: percentInIcon, charging: monitor.battery?.isCharging ?? false,
+            pluggedIn: monitor.battery?.isExternalPowerConnected ?? false,
+            systemIcon: SystemBatteryIcon.isAvailable)
+        let leafOnIcon = style.showsLeaf && style.leafOnIcon && showsIcon && !iconHasMark
+        let leafStyle = ink != nil && leafUsesColour
+            ? StoredColour.color(leafColour) : ink.map(Color.init(nsColor:)) ?? .black
         let iconGroup = HStack(spacing: 2) {
             if showsIcon {
-                Self.icon(for: monitor.battery, showingPercentage: percentInIcon,
-                          colour: ink == nil ? .none : style.fill, ink: ink)
+                let icon = Self.icon(for: monitor.battery, showingPercentage: percentInIcon,
+                                     colour: ink == nil ? .none : style.fill, ink: ink)
+                if leafOnIcon {
+                    Self.withLeaf(icon, leafStyle: leafStyle)
+                } else {
+                    icon
+                }
             }
-            if style.showsLeaf {
+            if style.showsLeaf && !leafOnIcon {
                 Image(systemName: "leaf.fill")
                     .font(.system(size: 11))
-                    .foregroundStyle(ink != nil && leafUsesColour
-                                     ? StoredColour.color(leafColour) : ink.map(Color.init(nsColor:)) ?? .black)
+                    .foregroundStyle(leafStyle)
             }
         }
         let hasIconGroup = showsIcon || style.showsLeaf
@@ -91,6 +102,45 @@ struct MenuBarLabel: View {
         }
         .font(.system(size: 13))
         .foregroundStyle(ink.map(Color.init(nsColor:)) ?? .black)
+    }
+
+    /// Whether the battery icon has something in its middle that the leaf would
+    /// cover, so the leaf goes beside it instead. macOS's icon shows the percentage,
+    /// and a bolt or plug while charging or plugged in; the fallback symbol shows
+    /// only a bolt while charging.
+    static func iconHasMark(percentInIcon: Bool, charging: Bool, pluggedIn: Bool, systemIcon: Bool) -> Bool {
+        systemIcon ? percentInIcon || charging || pluggedIn : charging
+    }
+
+    /// The battery icon with an upright leaf over its middle, reaching past its top
+    /// and bottom, and a gap cut around the leaf so it stays readable against the
+    /// fill and outline.
+    static func withLeaf(_ icon: Image, leafStyle: Color) -> some View {
+        // The symbol's leaf lies diagonally: stand it upright, narrow it to a leaner
+        // leaf, then tilt it slightly to the right.
+        let leaf = Image(systemName: "leaf.fill").font(.system(size: 15, weight: .regular))
+            .rotationEffect(.degrees(45))
+            .scaleEffect(x: 0.62, y: 1)
+            .rotationEffect(.degrees(-15))
+        let gap = 1.2
+        // Enough copies of the leaf, shifted all the way round, for an even gap.
+        let offsets = stride(from: 0.0, to: 360, by: 15).map {
+            CGSize(width: gap * cos($0 * .pi / 180), height: gap * sin($0 * .pi / 180))
+        }
+        return icon
+            .mask {
+                Rectangle()
+                    .overlay {
+                        ZStack {
+                            ForEach(offsets.indices, id: \.self) { leaf.offset(offsets[$0]) }
+                        }
+                        .blendMode(.destinationOut)
+                    }
+                    .compositingGroup()
+            }
+            .overlay { leaf.foregroundStyle(leafStyle) }
+            // Room for the leaf, which is taller than the icon, so the image isn't cropped.
+            .padding(.vertical, 4)
     }
 
     @MainActor
@@ -187,22 +237,25 @@ enum MenuBarImageCache {
 struct MenuBarIconStyle: Hashable {
     var fill: SystemBatteryIcon.Colour
     var showsLeaf: Bool
+    /// The leaf sits on the battery icon rather than beside it.
+    var leafOnIcon = false
 
     /// At or below this charge, on battery, "By charge level" turns the fill yellow.
     static let lowLevel = 0.20
 
     /// macOS's rules by default: yellow in Low Power Mode, then red when nearly
-    /// empty on battery. The Low Power Mode indicator can be a leaf instead, or
-    /// nothing, and the fill can also turn yellow when low.
+    /// empty on battery. The Low Power Mode indicator can be a leaf instead (beside
+    /// or on the icon), or nothing, and the fill can also turn yellow when low.
     static func resolve(level: Double, onBattery: Bool, lowPowerMode: Bool,
                         indicator: LowPowerIndicator, colouring: BatteryColouring) -> MenuBarIconStyle {
-        let showsLeaf = lowPowerMode && indicator == .leaf
         if lowPowerMode && indicator == .yellow { return MenuBarIconStyle(fill: .yellow, showsLeaf: false) }
-        if onBattery && level <= SystemBatteryIcon.lowLevel { return MenuBarIconStyle(fill: .red, showsLeaf: showsLeaf) }
-        if colouring == .chargeLevel && onBattery && level <= lowLevel {
-            return MenuBarIconStyle(fill: .yellow, showsLeaf: showsLeaf)
-        }
-        return MenuBarIconStyle(fill: .none, showsLeaf: showsLeaf)
+        let fill: SystemBatteryIcon.Colour =
+            if onBattery && level <= SystemBatteryIcon.lowLevel { .red }
+            else if colouring == .chargeLevel && onBattery && level <= lowLevel { .yellow }
+            else { .none }
+        let showsLeaf = lowPowerMode && (indicator == .leaf || indicator == .leafOnBattery)
+        return MenuBarIconStyle(fill: fill, showsLeaf: showsLeaf,
+                                leafOnIcon: showsLeaf && indicator == .leafOnBattery)
     }
 }
 
