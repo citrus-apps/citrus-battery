@@ -50,6 +50,7 @@ final class IOSDeviceMonitor: ObservableObject {
         timer = Timer.scheduledTimer(withTimeInterval: Self.pollInterval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.refresh() }
         }
+        timer?.tolerance = Self.pollInterval / 10
     }
 
     #if DEBUG

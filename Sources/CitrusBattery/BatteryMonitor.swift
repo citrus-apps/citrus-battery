@@ -61,6 +61,7 @@ final class BatteryMonitor: ObservableObject {
         chargeLimitTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.refreshChargeLimit() }
         }
+        chargeLimitTimer?.tolerance = 3
     }
 
     #if DEBUG
@@ -122,6 +123,8 @@ final class BatteryMonitor: ObservableObject {
         timer = Timer.scheduledTimer(withTimeInterval: interval.seconds, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.refresh() }
         }
+        // Lets macOS fire it alongside other wakeups rather than on its own.
+        timer?.tolerance = interval.seconds / 10
     }
 
     private func updateIntervalIfChanged() {
