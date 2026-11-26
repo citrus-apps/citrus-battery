@@ -9,7 +9,7 @@ reach 80%, checks your charger, and records everything the battery's gauge has
 logged over its life. It's free, open source, and every feature
 is included.
 
-> **Version 1.3.1.** Data availability varies by hardware and OS version.
+> **Version 1.3.2.** Data availability varies by hardware and OS version.
 
 <p align="center">
   <a href="assets/screenshots/mac-dashboard.png">
