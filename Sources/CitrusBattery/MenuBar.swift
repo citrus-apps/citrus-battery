@@ -57,6 +57,7 @@ struct MenuBarLabel: View {
             leafColour: style.showsLeaf && leafUsesColour ? leafColour : nil, ink: ink?.description,
             level: battery.map { Int((($0.chargeFraction(style: .apple) ?? 0) * 1000).rounded()) },
             charging: battery?.isCharging ?? false, pluggedIn: battery?.isExternalPowerConnected ?? false,
+            fallbackSymbol: SystemBatteryIcon.isAvailable ? nil : Self.symbolName(for: battery),
             scale: NSScreen.main?.backingScaleFactor ?? 2)
         Image(nsImage: MenuBarImageCache.image(for: key) {
             Self.render(content(style, text: text, ink: ink), template: !coloured)
@@ -212,6 +213,10 @@ enum MenuBarImageCache {
         var level: Int?
         var charging: Bool
         var pluggedIn: Bool
+        /// The SF Symbol drawn in place of macOS's icon, which it picks from the exact
+        /// charge: two readings in the same tenth of a percent can fall either side
+        /// of one of its steps.
+        var fallbackSymbol: String?
         var scale: CGFloat
     }
 
