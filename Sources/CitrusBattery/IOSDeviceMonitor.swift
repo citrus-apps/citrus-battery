@@ -63,7 +63,9 @@ final class IOSDeviceMonitor: ObservableObject {
         devices.first { $0.udid == udid }
     }
 
-    /// Re-reads every connected device. Overlapping refreshes are skipped.
+    /// Re-reads every connected device. Overlapping refreshes are skipped. Each
+    /// device's reading shows as soon as it's in, so a slow WiFi device doesn't
+    /// hold up the others.
     func refresh() {
         guard !isRefreshing else { return }
         isRefreshing = true
@@ -74,50 +76,33 @@ final class IOSDeviceMonitor: ObservableObject {
                 await MainActor.run { [weak self] in self?.isRefreshing = false }
                 return
             }
-            var results: [(IOSDeviceReader.Listing, IOSDeviceStatus)] = []
             let debug = ProcessInfo.processInfo.environment["CITRUS_DEBUG_DEVICES"] != nil
+            if debug, listings.isEmpty {
+                FileHandle.standardError.write(Data("no devices listed\n".utf8))
+            }
+            await MainActor.run { [weak self] in self?.apply(listings) }
             for listing in listings {
                 let status = IOSDeviceReader.read(listing)
                 if debug {
                     FileHandle.standardError.write(Data("device \(listing.udid) \(listing.connection) → \(status)\n".utf8))
                 }
-                results.append((listing, status))
+                await MainActor.run { [weak self] in self?.apply(status, for: listing) }
             }
-            if debug, listings.isEmpty {
-                FileHandle.standardError.write(Data("no devices listed\n".utf8))
-            }
-            await MainActor.run { [weak self] in self?.apply(results) }
+            await MainActor.run { [weak self] in self?.isRefreshing = false }
         }
     }
 
-    private func apply(_ results: [(IOSDeviceReader.Listing, IOSDeviceStatus)]) {
+    /// Marks devices no longer listed as disconnected. Listed ones keep their last
+    /// state until they're read, and new ones appear once read.
+    private func apply(_ listings: [IOSDeviceReader.Listing]) {
         let now = Date()
         var updated = devices
-        let present = Set(results.map(\.0.udid))
-
-        for (listing, status) in results {
-            var device = updated.first { $0.udid == listing.udid }
-                ?? TrackedDevice(udid: listing.udid, state: .unavailable)
-            device.connection = listing.connection
-            switch status {
-            case let .ready(snapshot):
-                device.state = .ready
-                device.snapshot = snapshot
-                device.lastSeen = now
-            case .notTrusted:
-                device.state = .notTrusted
-            case .locked:
-                device.state = .locked
-            case .unavailable:
-                device.state = .unavailable
-            }
-            if let index = updated.firstIndex(where: { $0.udid == device.udid }) {
-                updated[index] = device
-            } else {
-                updated.append(device)
+        let present = Set(listings.map(\.udid))
+        for listing in listings {
+            if let index = updated.firstIndex(where: { $0.udid == listing.udid }) {
+                updated[index].connection = listing.connection
             }
         }
-
         for index in updated.indices where !present.contains(updated[index].udid) {
             updated[index].state = .disconnected
         }
@@ -126,8 +111,29 @@ final class IOSDeviceMonitor: ObservableObject {
             device.state == .disconnected
                 && (device.lastSeen.map { now.timeIntervalSince($0) > Self.staleInterval } ?? true)
         }
+        if updated != devices { devices = updated }
+    }
 
-        devices = updated
-        isRefreshing = false
+    private func apply(_ status: IOSDeviceStatus, for listing: IOSDeviceReader.Listing) {
+        let index = devices.firstIndex { $0.udid == listing.udid }
+        var device = index.map { devices[$0] } ?? TrackedDevice(udid: listing.udid, state: .unavailable)
+        device.connection = listing.connection
+        switch status {
+        case let .ready(snapshot):
+            device.state = .ready
+            device.snapshot = snapshot
+            device.lastSeen = Date()
+        case .notTrusted:
+            device.state = .notTrusted
+        case .locked:
+            device.state = .locked
+        case .unavailable:
+            device.state = .unavailable
+        }
+        if let index {
+            if device != devices[index] { devices[index] = device }
+        } else {
+            devices.append(device)
+        }
     }
 }
